@@ -43,6 +43,7 @@ set :datafile, 'Pas_aSVZ_DN-REST_illumina_sept10_Sample_Probe_Profile.txt'
 desc "Upload Data"
 task :upload_data, :roles => group_name do
   upload(datafile, "#{mount_point}/#{datafile}")
+  upload("README","#{mount_point}/README")
 end
 before 'upload_data', 'EC2:start'
 

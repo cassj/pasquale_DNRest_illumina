@@ -26,7 +26,6 @@ set :availability_zone, 'eu-west-1a'  #wherever your ami is
 set :dev, '/dev/sdf'
 set :mount_point, '/mnt/data'
 
-set :git_url, 'http://github.com/cassj/DNREST_expression_mouse_astrocyte_volta/raw/master'
 
 # Try and load a local config file to override any of the above values, should one exist.
 # So that if you change these values, they don't get overwritten if you update the repos.
