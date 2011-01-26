@@ -9,33 +9,28 @@ args <- commandArgs(trailingOnly=TRUE)
 
 # load datafile from pp_expression_data
 limmafile <- args[1]
-remoat.annot.file <- args[2]
 
-#limmafile <- "/mnt/data/limma_results.csv"
-#remoat.annot.file <- "/mnt/work/lib/Annotation_Illumina_Mouse-WG-V1_mm9_V1.0.0_Aug09.txt"
+limmafile <- "/mnt/data/limma_results.csv"
+remoat.annot.file <- "/mnt/work/lib/Annotation_Illumina_Mouse-WG-V2_mm9_V1.0.0_Aug09.txt"
 
 limma <- read.csv(limmafile)
 limma<-limma[,-1]
 colnames(limma)[1]<-"IlluminaID"
 
+# Array is Illumina Mouse Ref8 v2
+# "This BeadChip targets approximately 25,600 well-annotated RefSeq transcripts"
+#dim(limma)
+#[1] 25697     7
 
 
+# The IDs we have are bead IDs not ILMN ids. Just seems to be what GIS give us back.
+# We can annotate these using
+library(illuminaMousev2BeadID.db)
+# but this library doesn't have the genome position of the probes. 
+# The BioC annotation comes from the ReMOAT group at Cambridge Uni, so
+# we can just directly use their data.
+# ReMOAT paper: http://nar.oxfordjournals.org/cgi/content/full/gkp942
 
-
-
-######
-# Annotation from ReMOAT
-
-# BTW, if we assume that the ~46K probeIDs in the remoat.annot correspond to the entire array
-# and that most of those have a 1:1 relationship to a targetID then the "raw" data from KY
-# has been seriously filtered. The entire limma table contains only 15060 genes.
-# Nothing we can do about it unless we can get hold of the earlier data. Just be wary when
-# interpreting results I guess...
-
-# mappings to mm9
-
-# Annotate from the ReMOAT data
-# see http://nar.oxfordjournals.org/cgi/content/full/gkp942
 remoat.annot <- read.csv(remoat.annot.file, header=T, sep="\t") 
 
 # Throw away anything that isn't perfect or good (the only classes of match likely
@@ -49,9 +44,14 @@ remoat.annot <- remoat.annot[keep,]
 
 # join illumina data to annotation. This will just ditch any limma data from unmapped probes
 # (limma = 15060, limma.annot=13899)
-limma.annot = merge(limma, remoat.annot, by.x="IlluminaID", by.y="Probe_id")
+limma.annot = merge(limma, remoat.annot, by.x="IlluminaID", by.y="Array_Address_Id_0")
 
-#ok, we actually have probeIds so the relationship should be 1:1
+
+#> dim(limma.annot)
+#[1] 24281   115
+#> dim(limma)
+#[1] 25697     7
+
 
 # We probably don't need *all* the annotation, although we do need to have the genome and
 # transcriptome position of the probe.
@@ -66,9 +66,18 @@ nms <- qw(IlluminaID, logFC, AveExpr, t, P.Value, adj.P.Val, B,Lumi_id,Probe_seq
           Exons,
           Ensembl_transcripts, Proportion_Ensembl_transcripts,
           Lumi_transcriptomic_annotation, Lumi_transcriptomic_match )
-
 limma.annot <- limma.annot[,nms]
 
+
+#and while we're at it, we might at well get the Bioconductor annotation
+ids <- as.character(limma.annot[,"IlluminaID"])
+
+entrez <-  unlist(mget(ids,illuminaMousev2BeadIDENTREZID, ifnotfound=NA))
+ensembl <- unlist(mget(ids,illuminaMousev2BeadIDENSEMBL, ifnotfound=NA ))
+genename <- unlist(mget(ids,illuminaMousev2BeadIDGENENAME, ifnotfound=NA))
+genesymbol <- unlist(mget(ids,illuminaMousev2BeadIDSYMBOL, ifnotfound=NA))
+
+limma.annot <- data.frame(limma.annot, EntrezGene=entrez[ids], EnsemblGene=ensembl[ids], GeneName=genename[ids], GeneSymbol=genesymbol[ids])
 
 #parse the genomic locations. Some span exon junctions and so we'll put
 #their 2 genomic locations in as separate entries in the RangedData object...
